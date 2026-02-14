@@ -8,7 +8,10 @@ const matchSchema = new mongoose.Schema({
     balls: { type: Number, default: 0 }, // 0 to 5
     currentInnings: { type: String, default: 'teamA' },
     status: { type: String, enum: ['upcoming', 'live', 'finished'], default: 'upcoming' },
-    history: [{ ball: Number, run: Number, type: String }] // Ball-by-ball history
+    history: [{ ball: Number, run: Number, type: String }], // Ball-by-ball history
+    
+    result: { type: String, default: "" }
+    
 }, { timestamps: true });
 
 module.exports = mongoose.model('Match', matchSchema);
