@@ -23,3 +23,28 @@ exports.getTeams = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// Delete a Team
+exports.deleteTeam = async (req, res) => {
+  try {
+    const team = await Team.findByIdAndDelete(req.params.id);
+    if (!team) return res.status(404).json({ message: "Team not found" });
+    res.json({ message: "Team deleted successfully!" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Update a Team
+exports.updateTeam = async (req, res) => {
+  try {
+    const updatedTeam = await Team.findByIdAndUpdate(
+      req.params.id,
+      { teamName: req.body.teamName, location: req.body.location },
+      { returnDocument: 'after' }
+    );
+    res.json({ message: "Team updated successfully!", team: updatedTeam });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

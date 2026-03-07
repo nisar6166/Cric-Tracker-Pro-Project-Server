@@ -5,7 +5,7 @@ const protect = (req, res, next) => {
 
     if (token && token.startsWith('Bearer')) {
         try {
-            // "Bearer TOKEN_HERE" choose token only
+
             const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
             req.user = decoded; 
             next();
@@ -17,7 +17,7 @@ const protect = (req, res, next) => {
     }
 };
 
-// middleware to verifying is admin
+// middleware to verify if user is admin
 const adminOnly = (req, res, next) => {
     if (req.user && req.user.role === 'admin') {
         next();
@@ -25,5 +25,13 @@ const adminOnly = (req, res, next) => {
         res.status(403).json({ message: "Access denied: Admins only" });
     }
 };
+// permission for admin and scorer
+const adminOrScorer = (req, res, next) => {
+    if (req.user && (req.user.role.toLowerCase() === 'admin' || req.user.role.toLowerCase() === 'scorer')) {
+        next();
+    } else {
+        res.status(403).json({ message: "Access denied: Admins or Scorers only" });
+    }
+};
 
-module.exports = { protect, adminOnly };
+module.exports = { protect, adminOnly, adminOrScorer };

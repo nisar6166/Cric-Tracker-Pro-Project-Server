@@ -2,13 +2,15 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
-const { protect, adminOnly } = require('../middleware/authMiddleware');
+
+const { protect, adminOnly, adminOrScorer } = require('../middleware/authMiddleware');
 const Player = require('../models/Player');
+const { deletePlayer, updatePlayer } = require('../controllers/playerController');
 
 // --- Multer setup ---
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, 'uploads/'); // to save photo from folder
+        cb(null, 'uploads/');
     },
     filename: (req, file, cb) => {
         cb(null, "player-" + Date.now() + path.extname(file.originalname));
@@ -16,8 +18,8 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// 1. To add a new player (Admin only + Photo Upload)
-router.post('/add', protect, adminOnly, upload.single('profileImage'), async (req, res) => {
+// 1. To add a new player (Admin and Scorer + Photo Upload)
+router.post('/add', protect, adminOrScorer, upload.single('profileImage'), async (req, res) => {
     try {
         const playerData = {
             ...req.body,
@@ -35,7 +37,6 @@ router.post('/add', protect, adminOnly, upload.single('profileImage'), async (re
 // 2. To view all players in a specific team
 router.get('/team/:teamId', async (req, res) => {
     try {
-    
         const players = await Player.find({ team: req.params.teamId });
         res.json(players);
     } catch (err) {
@@ -52,5 +53,11 @@ router.get('/all', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+
+// 4. Delete Player Route (Admin Only)
+router.delete('/delete/:id', protect, adminOnly, deletePlayer);
+
+// 5. Update Player Route (Admin Only)
+router.put('/update/:id', protect, adminOnly, updatePlayer);
 
 module.exports = router;

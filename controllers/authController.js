@@ -8,12 +8,15 @@ exports.register = async (req, res) => {
         const { name, email, mobile, password, role } = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
         
+        const profilePic = req.file ? req.file.path : "";
+
         const newUser = new User({ 
             name, 
             email, 
             mobile, 
             password: hashedPassword, 
-            role 
+            role: role || 'scorer',
+            profilePic
         });
 
         await newUser.save();
@@ -41,7 +44,7 @@ exports.login = async (req, res) => {
         const token = jwt.sign(
             { id: user._id, role: user.role }, 
             process.env.JWT_SECRET, 
-            { expiresIn: '1d' }
+            { expiresIn: '30d' }
         );
 
         // sending all information in response

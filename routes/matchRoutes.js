@@ -1,75 +1,63 @@
 const express = require('express');
 const router = express.Router();
-const Match = require('../models/Match');
 
-// 1. To Create Match
-router.post('/start', async (req, res) => {
+// Middleware imports
+const { protect, adminOnly } = require('../middleware/authMiddleware');
+
+// Controller imports
+const { 
+    createMatch, 
+    getScheduledMatches, 
+    getMatchById, 
+    updateTossAndSquad,
+    getAllMatches,
+    deleteMatch,
+    updateMatch    
+} = require('../controllers/matchController');
+
+const Match = require('../models/Match'); 
+
+// 1. Route to create match (Admin only)
+router.post('/create', protect, adminOnly, createMatch);
+
+// 2. Route to get scheduled matches only
+router.get('/scheduled', getScheduledMatches);
+
+// 3. Route to get ALL matches (Live, Scheduled, Completed)
+router.get('/all', getAllMatches);
+
+// 4. Route to fetch a single match by ID
+router.get('/:id', getMatchById);
+
+// 5. Route to update Toss and Playing XI
+router.put('/:id/toss', protect, updateTossAndSquad);
+
+// 6. Route to Delete match (Admin only)
+router.delete('/delete/:id', protect, adminOnly, deleteMatch);
+
+// 7. Route to Edit match details and STATUS
+router.put('/update/:id', protect, updateMatch);
+
+// UPDATE MATCH SCORE & LIVE TRACKING
+router.put('/update-score/:id', protect, async (req, res) => {
     try {
-        const newMatch = new Match(req.body);
-        const savedMatch = await newMatch.save();
-        res.status(201).json(savedMatch);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
+        const matchId = req.params.id;
+        const updateData = req.body;
 
-// 2. To Update Score
-router.put('/update/:id', async (req, res) => {
-    const { runs, isWicket, maxOvers } = req.body;
-    try {
-        const match = await Match.findById(req.params.id);
-        if (!match) return res.status(404).json({ message: "Match not found" });
+        const updatedMatch = await Match.findByIdAndUpdate(
+            matchId,
+            { $set: updateData }, 
+            { returnDocument: 'after' }
+        );
 
-        if (match.status === 'finished') return res.status(400).json({ message: "Match already finished" });
-
-        if (match.currentInnings === 'teamA') {
-            match.teamA.runs += Number(runs);
-            if (isWicket) match.teamA.wickets += 1;
-        } else {
-            match.teamB.runs += Number(runs);
-            if (isWicket) match.teamB.wickets += 1;
-        }
-       
-
-        // Calculating the over
-        match.balls += 1;
-        if (match.balls === 6) {
-            match.overs += 1;
-            match.balls = 0;
+        if (!updatedMatch) {
+            return res.status(404).json({ error: "Match not found!" });
         }
 
-        // Winning Logic (Team B chasing)
-        if (match.currentInnings === 'teamB') {
-            if (match.teamB.runs > match.teamA.runs) {
-                match.status = 'finished';
-                match.result = `${match.teamB.name} won by ${10 - match.teamB.wickets} wickets`;
-            } else if (match.teamB.wickets >= 10 || match.overs >= maxOvers) {
-                match.status = 'finished';
-                if (match.teamA.runs > match.teamB.runs) {
-                    match.result = `${match.teamA.name} won by ${match.teamA.runs - match.teamB.runs} runs`;
-                } else if (match.teamA.runs === match.teamB.runs) {
-                    match.result = "Match Tied";
-                }
-            }
-        }
-
-        // Innings Switch Logic
-        const currentTeam = match.currentInnings === 'teamA' ? match.teamA : match.teamB;
-        if (match.status !== 'finished' && (currentTeam.wickets >= 10 || match.overs >= maxOvers)) {
-            if (match.currentInnings === 'teamA') {
-                match.currentInnings = 'teamB';
-                match.overs = 0;
-                match.balls = 0;
-            } else {
-                match.status = 'finished';
-            }
-        }
-
-        await match.save();
-        req.io.emit('scoreUpdate', match); 
-        res.json(match);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(200).json({ success: true, message: "Score updated!", match: updatedMatch });
+    } catch (error) {
+        console.error("Score Update Error:", error);
+        res.status(500).json({ error: "Failed to update score." });
     }
 });
 
