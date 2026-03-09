@@ -1,4 +1,5 @@
 const Scorecard = require('../models/Scorecard');
+const Match = require('../models/Match');
 
 exports.saveScorecard = async (req, res) => {
     try {
@@ -12,7 +13,43 @@ exports.saveScorecard = async (req, res) => {
             { $set: scorecardData }, 
             { returnDocument: 'after', upsert: true } 
         );
-        
+
+        const match = await Match.findById(matchId);
+        if (match) {
+            const teamAId = String(match.teamA);
+            const teamBId = String(match.teamB);
+
+            const matchUpdate = {};
+
+            const applyInnings = (innings, teamIdStr) => {
+                if (!innings || !innings.team) return;
+                const inningsTeamId = String(innings.team);
+                const runs  = innings.runs  ?? 0;
+                const wkts  = innings.wickets ?? 0;
+                const ovrs  = innings.overs  ?? 0;
+                const blls  = innings.balls  ?? 0;
+
+                if (inningsTeamId === teamAId) {
+                    matchUpdate.scoreA   = runs;
+                    matchUpdate.wicketsA = wkts;
+                    matchUpdate.oversA   = ovrs;
+                    matchUpdate.ballsA   = blls;
+                } else if (inningsTeamId === teamBId) {
+                    matchUpdate.scoreB   = runs;
+                    matchUpdate.wicketsB = wkts;
+                    matchUpdate.oversB   = ovrs;
+                    matchUpdate.ballsB   = blls;
+                }
+            };
+
+            applyInnings(scorecardData.firstInnings,  teamAId);
+            applyInnings(scorecardData.secondInnings, teamBId);
+
+            if (Object.keys(matchUpdate).length > 0) {
+                await Match.findByIdAndUpdate(matchId, { $set: matchUpdate });
+            }
+        }
+
         res.status(200).json({ message: "Scorecard saved successfully", scorecard });
     } catch (error) {
         console.error("Error saving scorecard:", error);

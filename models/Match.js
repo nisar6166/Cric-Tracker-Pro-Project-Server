@@ -35,9 +35,6 @@ const matchSchema = new mongoose.Schema({
     totalOvers: { type: Number, required: true },
     durationMinutes: { type: Number, default: 120 },
     
-    // Scheduled, Live, Paused, Completed
-    status: { type: String, default: 'Scheduled' },
-    pauseReason: { type: String, default: '' },
     // Scheduled, Live, Paused, Completed, Abandoned
     status: { type: String, default: 'Scheduled' },
     pauseReason: { type: String, default: '' },

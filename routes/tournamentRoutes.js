@@ -6,7 +6,7 @@ const Tournament = require('../models/Tournament');
 const Match = require('../models/Match');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 
-// --- Multer Setup ---
+//  Multer Setup 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => { cb(null, 'uploads/'); },
     filename: (req, file, cb) => { cb(null, "tourney-" + Date.now() + path.extname(file.originalname)); }
@@ -28,7 +28,7 @@ router.post('/create', protect, adminOnly, upload.fields([{ name: 'logo', maxCou
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-//2. to listing all tournaments 
+// 2. to listing all tournaments 
 router.get('/all', async (req, res) => {
     try {
         const tournaments = await Tournament.find().sort({ createdAt: -1 });
@@ -36,7 +36,31 @@ router.get('/all', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-//3. to take tull data from tournament(Teams + Matches)
+// 8. update tournament
+router.put('/update/:id', protect, adminOnly, upload.fields([{ name: 'logo', maxCount: 1 }, { name: 'banner', maxCount: 1 }]), async (req, res) => {
+    try {
+        let updateData = { ...req.body };
+        if (req.files && req.files['logo']) updateData.tournamentLogo = req.files['logo'][0].path;
+        if (req.files && req.files['banner']) updateData.tournamentBanner = req.files['banner'][0].path;
+
+        const updatedTournament = await Tournament.findByIdAndUpdate(
+            req.params.id, 
+            updateData, 
+            { new: true }
+        );
+        res.json({ message: "Updated successfully!", tournament: updatedTournament });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 9. to delete tournament
+router.delete('/delete/:id', protect, adminOnly, async (req, res) => {
+    try {
+        await Tournament.findByIdAndDelete(req.params.id);
+        res.json({ message: "Deleted successfully!" });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 3. to get full data from tournament (Teams + Matches)
 router.get('/:id', async (req, res) => {
     try {
         const tournament = await Tournament.findById(req.params.id)
@@ -52,14 +76,14 @@ router.get('/:id', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-//4. table pool wise (Pool A, B, etc.)
+// 4. table pool wise (Pool A, B, etc.)
 router.put('/:id/assign-pools', protect, adminOnly, async (req, res) => {
     try {
         const { pools } = req.body; 
         const updatedTournament = await Tournament.findByIdAndUpdate(
             req.params.id,
             { pools, 'knockoutSettings.currentStage': 'League' },
-            { returnDocument: 'after' }
+            { new: true } 
         ).populate('pools.teams');
 
         res.json({ message: "Pools assigned successfully!", tournament: updatedTournament });
@@ -122,7 +146,7 @@ router.post('/:id/generate-knockouts', protect, async (req, res) => {
         await Tournament.findByIdAndUpdate(req.params.id, {
             $push: { matches: { $each: createdMatches } },
             'knockoutSettings.currentStage': stage
-        }, { returnDocument: 'after' });
+        }, { new: true });
 
         res.json({ message: `${stage} matches generated successfully!`, matches: createdMatches });
     } catch (err) {
@@ -137,33 +161,9 @@ router.put('/:id/update-stage', protect, adminOnly, async (req, res) => {
         const updatedTournament = await Tournament.findByIdAndUpdate(
             req.params.id,
             { 'knockoutSettings.currentStage': nextStage },
-            { returnDocument: 'after' }
+            { new: true }  // ✅ Fixed: was { returnDocument: 'after' }
         );
         res.json({ message: `Tournament moved to ${nextStage}`, tournament: updatedTournament });
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// 8. update tournament
-router.put('/update/:id', protect, adminOnly, upload.fields([{ name: 'logo', maxCount: 1 }, { name: 'banner', maxCount: 1 }]), async (req, res) => {
-    try {
-        let updateData = { ...req.body };
-        if (req.files && req.files['logo']) updateData.tournamentLogo = req.files['logo'][0].path;
-        if (req.files && req.files['banner']) updateData.tournamentBanner = req.files['banner'][0].path;
-
-        const updatedTournament = await Tournament.findByIdAndUpdate(
-            req.params.id, 
-            updateData, 
-            { returnDocument: 'after' }
-        );
-        res.json({ message: "Updated successfully!", tournament: updatedTournament });
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// 9. to delete tournament
-router.delete('/delete/:id', protect, adminOnly, async (req, res) => {
-    try {
-        await Tournament.findByIdAndDelete(req.params.id);
-        res.json({ message: "Deleted successfully!" });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

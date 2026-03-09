@@ -26,19 +26,13 @@ router.get('/scheduled', getScheduledMatches);
 // 3. Route to get ALL matches (Live, Scheduled, Completed)
 router.get('/all', getAllMatches);
 
-// 4. Route to fetch a single match by ID
-router.get('/:id', getMatchById);
-
-// 5. Route to update Toss and Playing XI
-router.put('/:id/toss', protect, updateTossAndSquad);
-
-// 6. Route to Delete match (Admin only)
+// 4. Route to Delete match (Admin only)
 router.delete('/delete/:id', protect, adminOnly, deleteMatch);
 
-// 7. Route to Edit match details and STATUS
+// 5. Route to Edit match details and STATUS
 router.put('/update/:id', protect, updateMatch);
 
-// UPDATE MATCH SCORE & LIVE TRACKING
+// 6. UPDATE MATCH SCORE & LIVE TRACKING
 router.put('/update-score/:id', protect, async (req, res) => {
     try {
         const matchId = req.params.id;
@@ -47,12 +41,14 @@ router.put('/update-score/:id', protect, async (req, res) => {
         const updatedMatch = await Match.findByIdAndUpdate(
             matchId,
             { $set: updateData }, 
-            { returnDocument: 'after' }
+            { new: true } 
         );
 
         if (!updatedMatch) {
             return res.status(404).json({ error: "Match not found!" });
         }
+
+        req.io.emit('score_update', updatedMatch);
 
         res.status(200).json({ success: true, message: "Score updated!", match: updatedMatch });
     } catch (error) {
@@ -60,5 +56,11 @@ router.put('/update-score/:id', protect, async (req, res) => {
         res.status(500).json({ error: "Failed to update score." });
     }
 });
+
+// 7. Route to fetch a single match by ID
+router.get('/:id', getMatchById);
+
+// 8. Route to update Toss and Playing XI
+router.put('/:id/toss', protect, updateTossAndSquad);
 
 module.exports = router;
